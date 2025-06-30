@@ -41,7 +41,7 @@ const SketchPlanForm = () => {
 
     try {
       setLoading(true);
-      const res = await fetch("http://localhost:3000/api/submissions", {
+      const res = await fetch(`http://localhost:3000/api/submissions`, {
         method: "POST",
         body: data,
       });
@@ -79,7 +79,6 @@ const SketchPlanForm = () => {
       <h2 className="text-2xl font-bold mb-6">Generate Sketch Plan</h2>
 
       <form className="space-y-4" onSubmit={handleSubmit}>
-        {/* Text Fields */}
         {[
           ["ownerName", "Owner’s Name", "John Doe"],
           ["plotNumber", "Plot Number", "Plot-45"],
@@ -107,7 +106,6 @@ const SketchPlanForm = () => {
           </div>
         ))}
 
-        {/* Land Use Select */}
         <div>
           <label className="block text-sm font-medium mb-1">Land Use</label>
           <select
@@ -122,7 +120,6 @@ const SketchPlanForm = () => {
           </select>
         </div>
 
-        {/* Latitude and Longitude */}
         <div className="flex gap-2">
           {["lat", "lon"].map((coord) => (
             <div className="w-1/2" key={coord}>
@@ -142,7 +139,6 @@ const SketchPlanForm = () => {
           ))}
         </div>
 
-        {/* Sketch Option */}
         <div>
           <label className="block text-sm font-medium mb-1">
             Sketch Option (A = Static, B = Satellite, C = Both)
@@ -159,7 +155,6 @@ const SketchPlanForm = () => {
           </select>
         </div>
 
-        {/* File Uploads */}
         {[
           ["landTransfer", "Land Transfer Document"],
           ["utmSketch", "UTM Sketch File"],
@@ -177,7 +172,6 @@ const SketchPlanForm = () => {
           </div>
         ))}
 
-        {/* Submit Button */}
         <button
           type="submit"
           disabled={loading}
@@ -186,7 +180,6 @@ const SketchPlanForm = () => {
           {loading ? "Submitting..." : "Generate Sketch"}
         </button>
 
-        {/* Response */}
         {response?.message && (
           <div className="mt-6 rounded-md bg-green-100 p-4 border border-green-300">
             <h3 className="text-green-800 font-semibold mb-1">

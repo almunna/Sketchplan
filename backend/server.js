@@ -25,6 +25,9 @@ mongoose
   .catch((err) => console.error(err));
 
 app.use("/api/submissions", submissionsRouter);
+app.get("/", (req, res) => {
+  res.send("Backend Connected");
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
