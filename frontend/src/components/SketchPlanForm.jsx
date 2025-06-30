@@ -42,7 +42,7 @@ const SketchPlanForm = () => {
     try {
       setLoading(true);
       const res = await fetch(
-        "https://sketchplan.onrender.com/api/submissions",
+        "https://sketchplan-8.onrender.com/api/submissions",
         {
           method: "POST",
           body: data,
