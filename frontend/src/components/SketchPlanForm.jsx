@@ -41,7 +41,7 @@ const SketchPlanForm = () => {
 
     try {
       setLoading(true);
-      const res = await fetch(`http://localhost:3000/api/submissions`, {
+      const res = await fetch("http://localhost:3000/api/submissions", {
         method: "POST",
         body: data,
       });
