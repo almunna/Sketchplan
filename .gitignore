@@ -1,7 +1,7 @@
 # Node modules (both frontend and backend)
 node_modules/
 **/node_modules/
-
+node_modules
 # Build output
 build/
 dist/
@@ -33,7 +33,7 @@ pnpm-lock.yaml
 
 # React specific
 *.local
-.env.local
+.env
 .env.development.local
 .env.test.local
 .env.production.local
