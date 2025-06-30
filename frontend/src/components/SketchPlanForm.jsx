@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 const SketchPlanForm = () => {
   const [formData, setFormData] = useState({
@@ -17,32 +17,85 @@ const SketchPlanForm = () => {
     idProof: null,
   });
 
+  const [locationOption, setLocationOption] = useState("");
+  const [latLngCorners, setLatLngCorners] = useState([{ lat: "", lon: "" }]);
+  const [utmCoords, setUtmCoords] = useState([
+    { zone: "", easting: "", northing: "" },
+  ]);
   const [response, setResponse] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  // Google Map Embed (Option A)
+  useEffect(() => {
+    if (locationOption === "A") {
+      const initMap = () => {
+        const map = new window.google.maps.Map(document.getElementById("map"), {
+          center: { lat: 13.4549, lng: -16.579 },
+          zoom: 14,
+        });
+
+        let marker = null;
+
+        map.addListener("click", (e) => {
+          const lat = e.latLng.lat();
+          const lon = e.latLng.lng();
+          setFormData((prev) => ({ ...prev, lat, lon }));
+
+          if (marker) marker.setMap(null);
+          marker = new window.google.maps.Marker({
+            position: { lat, lng: lon },
+            map,
+          });
+        });
+      };
+
+      if (!window.google) {
+        const script = document.createElement("script");
+        script.src = `https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY`;
+        script.async = true;
+        script.onload = initMap;
+        document.body.appendChild(script);
+      } else {
+        initMap();
+      }
+    }
+  }, [locationOption]);
+
   const handleChange = (e) => {
     const { name, value, files } = e.target;
-    if (files) {
-      setFormData((prev) => ({ ...prev, [name]: files[0] }));
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
-    }
+    setFormData((prev) => ({
+      ...prev,
+      [name]: files ? files[0] : value,
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const data = new FormData();
 
+    if (
+      (locationOption === "A" && (!formData.lat || !formData.lon)) ||
+      (locationOption === "B" && latLngCorners.length < 4) ||
+      (locationOption === "C" && utmCoords.length < 4)
+    ) {
+      alert("Please complete the selected location input method.");
+      return;
+    }
+
+    const data = new FormData();
     Object.entries(formData).forEach(([key, value]) => {
-      if (value !== null && value !== "") {
-        data.append(key, value);
-      }
+      if (value) data.append(key, value);
     });
+
+    if (locationOption === "B") {
+      data.append("latLngCorners", JSON.stringify(latLngCorners));
+    } else if (locationOption === "C") {
+      data.append("utmCoords", JSON.stringify(utmCoords));
+    }
 
     try {
       setLoading(true);
       const res = await fetch(
-        "https://sketchplan-8.onrender.com/api/submissions",
+        "https://sketchplan.onrender.com/api/submissions",
         {
           method: "POST",
           body: data,
@@ -52,8 +105,6 @@ const SketchPlanForm = () => {
       if (!res.ok) throw new Error("Submission failed");
       const json = await res.json();
       setResponse(json);
-
-      // Reset form
       setFormData({
         ownerName: "",
         plotNumber: "",
@@ -69,146 +120,262 @@ const SketchPlanForm = () => {
         utmSketch: null,
         idProof: null,
       });
+      setLatLngCorners([{ lat: "", lon: "" }]);
+      setUtmCoords([{ zone: "", easting: "", northing: "" }]);
+      setLocationOption("");
     } catch (err) {
-      console.error(err);
       alert("Submission failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="max-w-md mx-auto bg-white shadow-md rounded-lg p-6 mt-10">
-      <h2 className="text-2xl font-bold mb-6">Generate Sketch Plan</h2>
+  const renderLatLngInputs = () => (
+    <>
+      {latLngCorners.map((pair, idx) => (
+        <div className="flex gap-2 mb-2" key={idx}>
+          <input
+            type="number"
+            step="any"
+            placeholder="Latitude"
+            className="w-1/2 border px-2 py-1"
+            value={pair.lat}
+            onChange={(e) => {
+              const updated = [...latLngCorners];
+              updated[idx].lat = e.target.value;
+              setLatLngCorners(updated);
+            }}
+          />
+          <input
+            type="number"
+            step="any"
+            placeholder="Longitude"
+            className="w-1/2 border px-2 py-1"
+            value={pair.lon}
+            onChange={(e) => {
+              const updated = [...latLngCorners];
+              updated[idx].lon = e.target.value;
+              setLatLngCorners(updated);
+            }}
+          />
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() =>
+          setLatLngCorners([...latLngCorners, { lat: "", lon: "" }])
+        }
+      >
+        ➕ Add Point
+      </button>
+    </>
+  );
 
-      <form className="space-y-4" onSubmit={handleSubmit}>
+  const renderUtmInputs = () => (
+    <>
+      {utmCoords.map((point, idx) => (
+        <div className="flex gap-2 mb-2" key={idx}>
+          <input
+            type="text"
+            placeholder="Zone"
+            className="w-1/3 border px-2 py-1"
+            value={point.zone}
+            onChange={(e) => {
+              const updated = [...utmCoords];
+              updated[idx].zone = e.target.value;
+              setUtmCoords(updated);
+            }}
+          />
+          <input
+            type="number"
+            placeholder="Easting"
+            className="w-1/3 border px-2 py-1"
+            value={point.easting}
+            onChange={(e) => {
+              const updated = [...utmCoords];
+              updated[idx].easting = e.target.value;
+              setUtmCoords(updated);
+            }}
+          />
+          <input
+            type="number"
+            placeholder="Northing"
+            className="w-1/3 border px-2 py-1"
+            value={point.northing}
+            onChange={(e) => {
+              const updated = [...utmCoords];
+              updated[idx].northing = e.target.value;
+              setUtmCoords(updated);
+            }}
+          />
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() =>
+          setUtmCoords([...utmCoords, { zone: "", easting: "", northing: "" }])
+        }
+      >
+        ➕ Add UTM
+      </button>
+    </>
+  );
+
+  return (
+    <div className="max-w-2xl mx-auto p-6 bg-white rounded shadow mt-6">
+      <h2 className="text-xl font-bold mb-4">Sketch Plan Form</h2>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* General Form Fields */}
         {[
-          ["ownerName", "Owner’s Name", "John Doe"],
-          ["plotNumber", "Plot Number", "Plot-45"],
-          ["address", "Village, Town, District, Region", "Full address"],
-          ["email", "Email", "john@example.com"],
-          ["agentEmail", "Agent’s Email", "agent@example.com"],
-          ["notes", "Notes", "Additional instructions"],
-        ].map(([name, label, placeholder]) => (
-          <div key={name}>
-            <label className="block text-sm font-medium mb-1">{label}</label>
-            <input
-              type="text"
-              name={name}
-              value={formData[name]}
-              onChange={handleChange}
-              placeholder={placeholder}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required={[
-                "ownerName",
-                "address",
-                "landUse",
-                "sketchOption",
-              ].includes(name)}
-            />
-          </div>
+          "ownerName",
+          "plotNumber",
+          "address",
+          "email",
+          "agentEmail",
+          "notes",
+        ].map((field) => (
+          <input
+            key={field}
+            name={field}
+            type="text"
+            value={formData[field]}
+            onChange={handleChange}
+            placeholder={field}
+            className="w-full border px-3 py-2"
+          />
         ))}
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Land Use</label>
-          <select
-            name="landUse"
-            value={formData.landUse}
-            onChange={handleChange}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="Residential">Residential</option>
-            <option value="Commercial">Commercial</option>
-            <option value="Agriculture">Agriculture</option>
-          </select>
-        </div>
+        {/* Select Land Use */}
+        <select
+          name="landUse"
+          value={formData.landUse}
+          onChange={handleChange}
+          className="w-full border px-3 py-2"
+        >
+          <option>Residential</option>
+          <option>Commercial</option>
+          <option>Agriculture</option>
+        </select>
 
-        <div className="flex gap-2">
-          {["lat", "lon"].map((coord) => (
-            <div className="w-1/2" key={coord}>
-              <label className="block text-sm font-medium mb-1">
-                {coord === "lat" ? "Latitude" : "Longitude"}
-              </label>
+        {/* Location Input Options */}
+        <div>
+          <label className="block font-semibold mb-1">
+            Select Location Input Method
+          </label>
+          {["A", "B", "C"].map((opt) => (
+            <div key={opt}>
               <input
-                type="number"
-                step="any"
-                name={coord}
-                value={formData[coord]}
-                onChange={handleChange}
-                placeholder={coord === "lat" ? "23.7806" : "90.2794"}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                type="radio"
+                id={`opt${opt}`}
+                name="locationOption"
+                value={opt}
+                checked={locationOption === opt}
+                onChange={(e) => setLocationOption(e.target.value)}
               />
+              <label htmlFor={`opt${opt}`} className="ml-2">
+                {opt === "A"
+                  ? "Drop Google Map pin and enter length/width"
+                  : opt === "B"
+                  ? "Enter lat/lon corner coordinates"
+                  : "Enter UTM coordinates"}
+              </label>
             </div>
           ))}
         </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Sketch Option (A = Static, B = Satellite, C = Both)
-          </label>
-          <select
-            name="sketchOption"
-            value={formData.sketchOption}
-            onChange={handleChange}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="A">Static Only</option>
-            <option value="B">Satellite Only</option>
-            <option value="C">Both</option>
-          </select>
-        </div>
-
-        {[
-          ["landTransfer", "Land Transfer Document"],
-          ["utmSketch", "UTM Sketch File"],
-          ["idProof", "ID Proof"],
-        ].map(([name, label]) => (
-          <div key={name}>
-            <label className="block text-sm font-medium mb-1">{label}</label>
+        {/* Dynamic Sections */}
+        {locationOption === "A" && (
+          <>
+            <div id="map" style={{ height: "300px" }} className="my-3" />
             <input
-              type="file"
-              name={name}
-              onChange={handleChange}
-              accept=".pdf,image/*"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-700"
+              type="number"
+              name="lat"
+              value={formData.lat}
+              readOnly
+              className="border px-2 py-1"
             />
-          </div>
+            <input
+              type="number"
+              name="lon"
+              value={formData.lon}
+              readOnly
+              className="border px-2 py-1"
+            />
+            <input
+              type="number"
+              name="length"
+              placeholder="Length (m)"
+              onChange={handleChange}
+              className="border px-2 py-1"
+            />
+            <input
+              type="number"
+              name="width"
+              placeholder="Width (m)"
+              onChange={handleChange}
+              className="border px-2 py-1"
+            />
+          </>
+        )}
+        {locationOption === "B" && renderLatLngInputs()}
+        {locationOption === "C" && renderUtmInputs()}
+
+        {/* File Uploads */}
+        {["landTransfer", "utmSketch", "idProof"].map((name) => (
+          <input
+            key={name}
+            type="file"
+            name={name}
+            onChange={handleChange}
+            accept=".pdf,image/*"
+            className="w-full border px-3 py-2"
+          />
         ))}
+
+        {/* Sketch Type */}
+        <select
+          name="sketchOption"
+          value={formData.sketchOption}
+          onChange={handleChange}
+          className="w-full border px-3 py-2"
+        >
+          <option value="A">Static Only</option>
+          <option value="B">Satellite Only</option>
+          <option value="C">Both</option>
+        </select>
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md"
+          className="w-full bg-blue-600 text-white py-2 rounded"
         >
-          {loading ? "Submitting..." : "Generate Sketch"}
+          {loading ? "Submitting..." : "Generate Sketch Plan"}
         </button>
 
         {response?.message && (
-          <div className="mt-6 rounded-md bg-green-100 p-4 border border-green-300">
-            <h3 className="text-green-800 font-semibold mb-1">
-              🎉 {response.message}
-            </h3>
+          <div className="mt-4 bg-green-100 border border-green-400 p-3 rounded">
+            <strong>{response.message}</strong>
             {response.generatedPDFs?.staticPDF && (
-              <p className="text-sm mt-2 text-green-700">
-                📄 Static Sketch Plan:{" "}
+              <p>
+                Static:{" "}
                 <a
                   href={response.generatedPDFs.staticPDF}
                   target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline text-blue-600 hover:text-blue-800"
+                  rel="noreferrer"
+                  className="text-blue-600 underline"
                 >
                   View PDF
                 </a>
               </p>
             )}
             {response.generatedPDFs?.satellitePDF && (
-              <p className="text-sm mt-1 text-green-700">
-                🛰️ Satellite Sketch Plan:{" "}
+              <p>
+                Satellite:{" "}
                 <a
                   href={response.generatedPDFs.satellitePDF}
                   target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline text-blue-600 hover:text-blue-800"
+                  rel="noreferrer"
+                  className="text-blue-600 underline"
                 >
                   View PDF
                 </a>
