@@ -3,13 +3,12 @@ import express from "express";
 import Stripe from "stripe";
 
 const router = express.Router();
+import dotenv from "dotenv";
+dotenv.config();
 
-const stripe = new Stripe(
-  "sk_test_51RfjzC03tzIOrrPSz7VTeet0uC8sSJOTwuTpghNyXoPPyXnoHZzzdiDke0kfa7zAoqVQb6IXwLpPaoMi7FQDvdJp006PdlLuw2",
-  {
-    apiVersion: "2023-10-16",
-  }
-);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: "2023-10-16",
+});
 
 // Create Payment Intent for inline card payments
 router.post("/create-payment-intent", async (req, res) => {
