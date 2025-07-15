@@ -2,20 +2,17 @@ import express from "express";
 import Stripe from "stripe";
 import bodyParser from "body-parser";
 import Submission from "../models/Submission.js"; // Adjust if needed
+import dotenv from "dotenv";
 
 const router = express.Router();
+dotenv.config();
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: "2023-10-16",
+});
 
-const stripe = new Stripe(
-  "sk_test_51RfjzC03tzIOrrPSz7VTeet0uC8sSJOTwuTpghNyXoPPyXnoHZzzdiDke0kfa7zAoqVQb6IXwLpPaoMi7FQDvdJp006PdlLuw2",
-  {
-    apiVersion: "2023-10-16",
-  }
-);
+const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-// ✅ Use the Thin Payload secret from your working destination
-const endpointSecret = "whsec_qLUTIGRR03JwAn6QdEWWoZuyA2RkR4Oi";
-
-// Stripe requires raw body to verify the webhook signature
+// Stripe requires raw body to verify the webhook signatur
 router.post(
   "/webhook",
   bodyParser.raw({ type: "application/json" }),
