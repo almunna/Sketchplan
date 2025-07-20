@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { loadStripe } from "@stripe/stripe-js";
 import {
@@ -8,39 +8,49 @@ import {
   useElements,
 } from "@stripe/react-stripe-js";
 
-const stripePromise = loadStripe(
-  "pk_test_51RfjzC03tzIOrrPSdCPjpJpIUyS0I9xyh0sjeO85m4MzbxrIcVEBjNDF8eMCU5IkhvjYPEvGmv2ooEq8PxB0nrtj00ky9RijMs"
-);
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
-const CheckoutForm = ({ clientSecret, price, submission, onConfirm }) => {
+const CheckoutForm = ({
+  clientSecret,
+  price,
+  submission,
+  onConfirm,
+  paymentRef,
+}) => {
   const stripe = useStripe();
   const elements = useElements();
-  const [processing, setProcessing] = useState(false);
+
+  useEffect(() => {
+    if (paymentRef) {
+      paymentRef.current = async () => {
+        if (!stripe || !elements) return false;
+
+        const result = await stripe.confirmCardPayment(clientSecret, {
+          payment_method: {
+            card: elements.getElement(CardElement),
+          },
+        });
+
+        if (result.error) {
+          console.error("❌ Payment failed:", result.error.message);
+          alert("Payment failed: " + result.error.message);
+          return false;
+        } else if (result.paymentIntent.status === "succeeded") {
+          alert(
+            "✅ Payment successful. You will receive your rendered sketch in your mail shortly."
+          );
+          return true;
+        }
+
+        return false;
+      };
+    }
+  }, [stripe, elements, clientSecret, onConfirm, paymentRef]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!stripe || !elements) return;
-
-    setProcessing(true);
-
-    const result = await stripe.confirmCardPayment(clientSecret, {
-      payment_method: {
-        card: elements.getElement(CardElement),
-      },
-    });
-
-    if (result.error) {
-      console.error("❌ Payment failed:", result.error.message);
-      alert("Payment failed: " + result.error.message);
-      setProcessing(false);
-    } else {
-      if (result.paymentIntent.status === "succeeded") {
-        console.log("✅ Payment succeeded!");
-        onConfirm(); // ✅ Show modal after Stripe confirms success
-      }
-      setProcessing(false);
-    }
+    document.activeElement?.blur(); // prevent aria-hidden issue
+    onConfirm(); // open modal
   };
 
   return (
@@ -48,10 +58,9 @@ const CheckoutForm = ({ clientSecret, price, submission, onConfirm }) => {
       <CardElement className="p-4 border rounded-md bg-white" />
       <button
         type="submit"
-        disabled={!stripe || processing}
         className="w-full mt-6 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded text-lg"
       >
-        {processing ? "Processing..." : `Pay Now`}
+        Pay Now
       </button>
     </form>
   );
@@ -65,6 +74,40 @@ const PaymentPageContent = () => {
   const [clientSecret, setClientSecret] = useState("");
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [processing, setProcessing] = useState(false);
+
+  const paymentRef = useRef(null);
+
+  const renderSketch = async () => {
+    try {
+      const res = await fetch(
+        `${
+          import.meta.env.VITE_API_BASE_URL
+        }/api/sketch/generate/${submission_id}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            transferredTo: submission?.transferredTo || "",
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error("Sketch generation error:", errText);
+        setSuccessMessage("❌ Sketch generation failed.");
+        return;
+      }
+
+      await res.blob();
+      setSuccessMessage("✅ Sketch rendered and email sent successfully.");
+    } catch (err) {
+      console.error("Render failed:", err);
+      setSuccessMessage("❌ An error occurred during sketch rendering.");
+    }
+  };
 
   useEffect(() => {
     const fetchSubmission = async () => {
@@ -144,6 +187,18 @@ const PaymentPageContent = () => {
     <div className="relative max-w-md mx-auto py-10 px-6 bg-white min-h-screen">
       <h1 className="text-4xl font-bold text-center mb-10">Payment</h1>
 
+      {successMessage && (
+        <div className="mb-6 p-4 bg-green-100 text-green-800 border border-green-300 rounded relative">
+          {successMessage}
+          <button
+            onClick={() => setSuccessMessage("")}
+            className="absolute top-1 right-2 text-lg font-bold text-green-800 hover:text-red-600"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       <div className="border rounded-lg p-5 mb-8 shadow-sm">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold">Order Amount</h2>
@@ -201,6 +256,7 @@ const PaymentPageContent = () => {
             price={price}
             submission={submission}
             onConfirm={() => setShowModal(true)}
+            paymentRef={paymentRef}
           />
         </Elements>
       )}
@@ -255,13 +311,21 @@ const PaymentPageContent = () => {
               </tbody>
             </table>
             <button
-              onClick={() => {
+              onClick={async () => {
+                setProcessing(true);
                 setShowModal(false);
-                alert("Confirmed!");
+                if (paymentRef.current) {
+                  const success = await paymentRef.current();
+                  if (success) {
+                    await renderSketch();
+                  }
+                }
+                setProcessing(false);
               }}
+              disabled={processing}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded text-lg"
             >
-              Confirm Purchase
+              {processing ? "Processing..." : "Confirm Purchase"}
             </button>
           </div>
         </div>
