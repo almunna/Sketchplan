@@ -1,10 +1,13 @@
 import sys
 import re
 import json
+import platform
 from PIL import Image, ImageEnhance, ImageFilter
 import pytesseract
 
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+# ✅ Set Tesseract path only on Windows
+if platform.system() == "Windows":
+    pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 image_path = sys.argv[1]
 image = Image.open(image_path).convert("L")
