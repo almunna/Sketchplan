@@ -1,11 +1,13 @@
 import sys
+import platform
 import pytesseract
 from PIL import Image
 import re
 import json
 
-# Force Tesseract path on Windows
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+# ✅ Set Tesseract path only on Windows
+if platform.system() == "Windows":
+    pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 def extract_names(image_path):
     image = Image.open(image_path)
