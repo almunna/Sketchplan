@@ -19,7 +19,7 @@ const app = express();
 // ✅ Enable CORS
 app.use(
   cors({
-    origin: "http://localhost:5173", // or use "*" for dev only
+    origin: "https://sketchplan-1.onrender.com", // or use "*" for dev only
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
