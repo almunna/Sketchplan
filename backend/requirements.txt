@@ -1,3 +1,4 @@
 pytesseract
-requests
 Pillow
+pyproj
+requests
