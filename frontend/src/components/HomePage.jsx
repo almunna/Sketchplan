@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import sketchPlan from "../assets/sketch-plan.png";
+import sketchPlan from "../assets/sketch-plan.PNG";
 
 const HomePage = () => {
   return (
