@@ -1,9 +1,8 @@
-# ---------- Base: Node.js + Python + Tesseract + Puppeteer ----------
 FROM node:20-slim
 
-# Install system packages for Python, Tesseract, and Chromium
+# Install dependencies: Python, Chromium, Tesseract, system libs
 RUN apt-get update && apt-get install -y \
-    python3 python3-pip \
+    python3 python3-venv python3-pip \
     tesseract-ocr \
     libglib2.0-0 \
     libnss3 \
@@ -27,22 +26,28 @@ RUN apt-get update && apt-get install -y \
 # Set Puppeteer Chromium path
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
-# Set working directory
+# Create app directory
 WORKDIR /app
 
-# Install Node.js dependencies
+# Copy Node dependencies
 COPY package*.json ./
 RUN npm install --omit=dev
 
-# Install Python dependencies
+# Copy Python requirements and install in a venv
 COPY requirements.txt ./
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN python3 -m venv /app/venv \
+    && . /app/venv/bin/activate \
+    && pip install --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the project
+# Copy app source code
 COPY . .
 
-# Expose app port
+# Ensure virtualenv is used in runtime
+ENV PATH="/app/venv/bin:$PATH"
+
+# Expose port for Render
 EXPOSE 3000
 
-# Start server
+# Start Node server
 CMD ["node", "server.js"]
