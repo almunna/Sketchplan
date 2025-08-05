@@ -119,7 +119,7 @@ const SketchPlanForm = () => {
           sessionStorage.setItem("fallbackSubmissionId", result.submission_id);
         }
         alert(err.message);
-        window.location.href = `/fallback/${result?.submission_id}`;
+        window.location.href = `/#/fallback/${result?.submission_id}`;
       } else {
         alert(err.message || "Submission failed.");
       }
